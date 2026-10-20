@@ -2,16 +2,16 @@
 # Морозов Н.Н.
 
 ## 📌 kubernetes-project/
-### ├── terraform/           # IaC: кластер, сеть, ноды
-### ├── helm/                # Helm-чарты платформенных сервисов
-### │   ├── monitoring/      # kube-prometheus-stack + кастомные алерты
-### │   ├── logging/         # Loki + Promtail
-### │   ├── ingress/         # NGINX Ingress
-### │   └── tracing/         # Jaeger (опционально)
-### ├── app/                 # Манифесты Online Boutique
-### ├── gitlab-ci/           # .gitlab-ci.yml, пайплайн-описание
-### ├── argocd/              # Application-манифесты (если GitOps)
-### └── README.md            # Документация
+### ├── terraform/           IaC: кластер, сеть, ноды
+### ├── helm/                Helm-чарты платформенных сервисов
+### │   ├── monitoring/      kube-prometheus-stack + кастомные алерты
+### │   ├── logging/         Loki + Promtail
+### │   ├── ingress/         NGINX Ingress
+### │   └── tracing/         Jaeger (опционально)
+### ├── app/                 Манифесты Online Boutique
+### ├── gitlab-ci/           .gitlab-ci.yml, пайплайн-описание
+### ├── argocd/              Application-манифесты (если GitOps)
+### └── README.md            Документация
 
 ## ✨ Разработка в minikube
 
