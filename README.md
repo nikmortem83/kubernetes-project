@@ -15,6 +15,7 @@
 
 ## ✨ Разработка в minikube
 
+
 ## Запускаем minikube
 minikube start --driver=docker --nodes=3 --memory=2048 --cpus=2
 
