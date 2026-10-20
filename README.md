@@ -7,10 +7,10 @@
 ### │   ├── monitoring/      kube-prometheus-stack + кастомные алерты
 ### │   ├── logging/         Loki + Promtail
 ### │   ├── ingress/         NGINX Ingress
-### │   └── tracing/         Jaeger (опционально)
+### │   └── tracing/         Jaeger
 ### ├── app/                 Манифесты Online Boutique
 ### ├── gitlab-ci/           .gitlab-ci.yml, пайплайн-описание
-### ├── argocd/              Application-манифесты (если GitOps)
+### ├── argocd/              Application-манифесты
 ### └── README.md            Документация
 
 ## ✨ Разработка в minikube
