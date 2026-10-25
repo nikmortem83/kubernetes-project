@@ -8,7 +8,7 @@
 ### │   ├── logging/         Loki + Promtail
 ### │   ├── ingress/         NGINX Ingress
 ### │   └── tracing/         Jaeger
-### ├── app/                 Манифесты Online Boutique
+### ├── microservices-demo/                 Манифесты Online Boutique
 ### ├── gitlab-ci/           .gitlab-ci.yml, пайплайн-описание
 ### ├── argocd/              Application-манифесты
 ### └── README.md            Документация
