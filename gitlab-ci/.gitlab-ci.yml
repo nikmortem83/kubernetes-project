@@ -1,0 +1,18 @@
+stages:
+  - deploy-dev
+
+deploy-minikube:
+  stage: deploy-dev
+  image: alpine:latest  # Или образ с kubectl, helm, minikube
+  before_script:
+    # Здесь ты можешь запускать minikube start, если это CI-сервер.
+    # Для локального запуска (на своей машине) этот этап можно пропустить или сделать ручным.
+    - minikube start
+    - eval $(minikube docker-env)  # Критично для загрузки образов!
+  script:
+    - helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace
+    - helm upgrade --install prometheus grafana/kube-prometheus-stack --namespace monitoring --create-namespace
+    - helm upgrade --install loki grafana/loki-stack --namespace logging --create-namespace
+    - helm upgrade --install boutique ./helm/microservices-demo/helm-chart --namespace boutique --create-namespace --values ./helm/microservices-demo/helm-chart/values.yaml
+  only:
+    - main

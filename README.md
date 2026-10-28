@@ -46,11 +46,32 @@ helm uninstall loki grafana/loki-stack -n logging
 
 ### 🔥 6. Устанавливаем приложение Online Boutique by Google
 helm install boutique ./helm/online-boutique \
-  --namespace onlineboutique --create-namespace \
-  --values ./microservices-demo/helm-chart/values.yaml
+  --namespace boutique --create-namespace \
+  --values ./helm/online-boutique/values.yaml
 
-helm uninstall boutique ./helm/online-boutique -n onlineboutique
+helm uninstall boutique ./helm/online-boutique -n boutique
 
+
+
+# Ingress
+helm install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx --create-namespace \
+  -f helm/ingress/values-ingress.yaml
+
+# Monitoring
+helm install prometheus grafana/kube-prometheus-stack \
+  --namespace monitoring --create-namespace \
+  -f helm/monitoring/values-prometheus.yaml
+
+# Logging
+helm install loki grafana/loki-stack \
+  --namespace logging --create-namespace \
+  -f helm/logging/values-loki.yaml
+
+# Online Boutique
+helm install boutique ./helm/online-boutique \
+  --namespace boutique --create-namespace \
+  -f helm/online-boutique/values.yaml
 
 
 

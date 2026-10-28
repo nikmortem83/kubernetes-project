@@ -1,0 +1,30 @@
+prometheus:
+  prometheusSpec:
+    retention: 24h
+    serviceMonitorSelector:
+      matchLabels:
+        release: prometheus
+    podMonitorSelector:
+      matchLabels:
+        release: prometheus
+
+grafana:
+  adminPassword: "change-me"  # В реальном проекте лучше вынести в secret
+  persistence:
+    enabled: false            # Для minikube/MVP без персистентного диска
+
+alertmanager:
+  alertmanagerSpec:
+    replicas: 1
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 2Gi
+
+nodeExporter:
+  enabled: true
+kubeStateMetrics:
+  enabled: true
