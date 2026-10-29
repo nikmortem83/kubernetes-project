@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: online-boutique-monitor
+  namespace: shop
+  labels:
+    release: online-boutique
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: online-boutique
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+  namespaceSelector:
+    matchNames:
+      - shop

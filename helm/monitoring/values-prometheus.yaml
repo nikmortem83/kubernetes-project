@@ -9,9 +9,11 @@ prometheus:
         release: prometheus
 
 grafana:
-  adminPassword: "change-me"  # В реальном проекте лучше вынести в secret
+  # В реальном проекте лучше вынести в secret
+  adminPassword: "change-me"
+  # Для minikube/MVP без персистентного диска
   persistence:
-    enabled: false            # Для minikube/MVP без персистентного диска
+    enabled: false
 
 alertmanager:
   alertmanagerSpec:

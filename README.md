@@ -1,23 +1,38 @@
 # Проектная работа "Развёртывание и управление Managed кластерами Kubernetes с использованием Terraform и GitLab-CI"
-# Морозов Н.Н.
+# Морозов Н.Н. Kubernetes-2026-05
 
 ## 📌 kubernetes-project/
-### ├── terraform/           IaC: кластер, сеть, ноды
-### ├── helm/                Helm-чарты платформенных сервисов
-### │   ├── monitoring/      kube-prometheus-stack + кастомные алерты
-### │   ├── logging/         Loki + Promtail
-### │   ├── ingress/         NGINX Ingress
-### │   └── online-boutique/ Манифесты Online Boutique
-### │   └── tracing/         Jaeger
-### ├── gitlab-ci/           .gitlab-ci.yml, пайплайн-описание
-### ├── argocd/              Application-манифесты
-### └── README.md            Документация
+### ├── .gitlab-ci.yml                 # единый пайплайн (с флагами minikube/cloud)
+### ├── README.md                      # документация: шаги, переменные, как повторить
+### ├── terraform/                     # IaC для Managed K8s (Yandex)
+#### │   ├── main.tf
+#### │   ├── variables.tf
+#### │   └── outputs.tf
+### ├── helm/
+#### │   ├── ingress/                  # NGINX Ingress Controller
+#### │   │   └── values-ingress.yaml
+#### │   ├── logging/                  # Loki + Promtail
+#### │   │   └── values-loki.yaml
+#### │   ├── monitoring/               # kube-prometheus-stack
+#### │   │   ├── values-prometheus.yaml
+#### │   │   └── servicemonitor.yaml   # для сервисов Online Boutique
+#### │   ├── tracing/                  # Jaeger
+#### │   │   └── values-jaeger.yaml
+#### │   └── online-boutique/          # Helm-чарт приложения (на базе microservices-demo)
+#### │       ├── Chart.yaml
+#### │       ├── values.yaml           # основные настройки всех микросервисов
+#### │       └── templates/            # манифесты всех сервисов
+### ├── argocd/                        # GitOps-манифесты (Application CRD)
+#### │   └── boutique-app.yaml
+### └── scripts/
+####     ├── minikube.sh               # запуск minikube + включение нужных аддонов
+####     └── deploy-all.sh             # универсальный скрипт деплоя всех компонентов
 
-## 📌 MVP платформы: Managed K8s (minikube → YC), мониторинг, логирование, CI/CD, приложение Online Boutique
+## 📌 MVP платформа: Managed K8s (minikube → YC), мониторинг, логирование, CI/CD, приложение Online Boutique
 
 ## ✨ Разработка в minikube
 ### 1. Поднимаем minikube
-minikube start --driver=docker --nodes=3 --memory=2048 --cpus=2 --disk-size=10g
+minikube start --driver=docker --nodes=3 --memory=2048 --cpus=2
 
 ### 2. Добавляем репозитории Helm
 helm repo add grafana https://grafana.github.io/helm-charts

@@ -121,15 +121,7 @@ frontend:
   cymbalBranding: false
   # One of: local, gcp, aws, azure, onprem, alibaba. When not set, defaults to "local" unless running in GKE, otherwise auto-sets to gcp.
   platform: local
-  singleSharedSession: false
-  # Ingress
-  ingress:
-    enabled: true
-    hosts:
-      - host: frontend.$(minikube ip).nip.io
-    paths:
-      - path: /
-        pathType: Prefix
+  singleSharedSession: falses
   virtualService:
     create: false
     hosts:
