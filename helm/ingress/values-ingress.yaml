@@ -1,19 +1,20 @@
 controller:
   replicaCount: 1
-  hostNetwork: false
+  resources:
+    limits:
+      cpu: "1000m"
+      memory: "512Mi"
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
   service:
     type: LoadBalancer
-    annotations:
-      # Для Yandex Cloud: если нужен статический IP, раскомментируй и укажи IP
-      # service.beta.kubernetes.io/yandex-cloud-load-balancer-ip: "YOUR_STATIC_IP"
-      # Для minikube ничего дополнительно не нужно
-  extraArgs:
-    default-ssl-certificate: ingress-nginx/ingress-controller-cert
   metrics:
     enabled: true
-    service:
+    serviceMonitor:
       enabled: true
-      port: 10254
-  podAnnotations:
-    prometheus.io/scrape: "true"
-    prometheus.io/port: "10254"
+      namespace: "ingress-nginx"
+      interval: "30s"
+defaultBackend:
+  enabled: true
+  replicaCount: 1

@@ -1,0 +1,79 @@
+global:
+  imagePullPolicy: IfNotPresent
+
+frontend:
+  replicaCount: 1
+  image:
+    repository: gcr.io/google-samples/microservices-demo/frontend
+    tag: v1.0.0
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+cartservice:
+  replicaCount: 1
+  image:
+    repository: gcr.io/google-samples/microservices-demo/cartservice
+    tag: v1.0.0
+  redis:
+    enabled: true
+
+productcatalogservice:
+  replicaCount: 1
+  image:
+    repository: gcr.io/google-samples/microservices-demo/productcatalogservice
+    tag: v1.0.0
+
+currencyservice:
+  replicaCount: 1
+  image:
+    repository: gcr.io/google-samples/microservices-demo/currencyservice
+    tag: v1.0.0
+
+paymentservice:
+  replicaCount: 1
+  image:
+    repository: gcr.io/google-samples/microservices-demo/paymentservice
+    tag: v1.0.0
+
+shippingservice:
+  replicaCount: 1
+  image:
+    repository: gcr.io/google-samples/microservices-demo/shippingservice
+    tag: v1.0.0
+
+emailservice:
+  replicaCount: 1
+  image:
+    repository: gcr.io/google-samples/microservices-demo/emailservice
+    tag: v1.0.0
+
+checkoutservice:
+  replicaCount: 1
+  image:
+    repository: gcr.io/google-samples/microservices-demo/checkoutservice
+    tag: v1.0.0
+
+recommendationservice:
+  replicaCount: 1
+  image:
+    repository: gcr.io/google-samples/microservices-demo/recommendationservice
+    tag: v1.0.0
+
+adservice:
+  replicaCount: 1
+  image:
+    repository: gcr.io/google-samples/microservices-demo/adservice
+    tag: v1.0.0
+
+loadgenerator:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: gcr.io/google-samples/microservices-demo/loadgenerator
+    tag: v1.0.0
+  targetUrl: "http://frontend"

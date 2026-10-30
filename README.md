@@ -31,10 +31,78 @@
 ## 📌 MVP платформа: Managed K8s (minikube → YC), мониторинг, логирование, CI/CD, приложение Online Boutique
 
 ## ✨ Разработка в minikube
-### 1. Поднимаем minikube
-minikube start --driver=docker --nodes=3 --memory=2048 --cpus=2
+### 1. Поднимаем minikube и необходимые аддоны
+minikube start --driver=docker --nodes=3 --memory=4096 --cpus=2
+minikube addons enable ingress
+minikube addons enable metrics-server
+kubectl config use-context minikube
 
-### 2. Добавляем репозитории Helm
+#### 🌟 ./scripts/minikube.sh (chmod +x kubernetes-project/scripts/minikube.sh)
+
+### 2. Создаем namespace:
+kubectl create ns ingress-nginx
+kubectl create ns monitoring
+kubectl create ns logging
+kubectl create ns tracing
+kubectl create ns boutique
+
+### 3. Установливаем платформенные компоненты через Helm
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+? helm repo add loki https://grafana.github.io/loki/charts
+helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+
+
+
+# Ingress
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  -f helm/ingress/values-ingress.yaml
+
+# Loki
+helm upgrade --install loki helm/logging/loki-chart \
+  --namespace logging \
+  --create-namespace
+
+helm uninstall loki helm/logging/loki-chart -n logging
+
+helm upgrade --install loki grafana/loki \
+  --namespace logging \
+  -f helm/logging/values-loki.yaml
+
+helm uninstall loki --namespace logging
+
+# Promtail
+helm upgrade --install promtail grafana/promtail \
+  --namespace logging \
+  --create-namespace \
+  --set loki.serviceName=loki
+
+helm uninstall promtail grafana/promtail -n logging
+
+helm upgrade --install promtail grafana/promtail \
+  --namespace logging \
+  --set loki.serviceName=loki \
+  -f helm/logging/values-promtail.yaml
+
+helm uninstall promtail --namespace logging
+
+# Prometheus + Grafana + Alertmanager
+helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  -f helm/monitoring/values-prometheus.yaml
+
+# Jaeger
+helm upgrade --install jaeger jaegertracing/jaeger \
+  --namespace tracing \
+  -f helm/tracing/values-jaeger.yaml
+
+
+
+
+
+
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
@@ -66,28 +134,7 @@ helm install boutique ./helm/online-boutique \
 
 helm uninstall boutique ./helm/online-boutique -n boutique
 
-
-
-# Ingress
-helm install ingress-nginx ingress-nginx/ingress-nginx \
-  --namespace ingress-nginx --create-namespace \
-  -f helm/ingress/values-ingress.yaml
-
-# Monitoring
-helm install prometheus grafana/kube-prometheus-stack \
-  --namespace monitoring --create-namespace \
-  -f helm/monitoring/values-prometheus.yaml
-
-# Logging
-helm install loki grafana/loki-stack \
-  --namespace logging --create-namespace \
-  -f helm/logging/values-loki.yaml
-
-# Online Boutique
-helm install boutique ./helm/online-boutique \
-  --namespace boutique --create-namespace \
-  -f helm/online-boutique/values.yaml
-
+#### 🌟 ./scripts/deploy-all.sh (chmod +x kubernetes-project/scripts/deploy-all.sh)
 
 
 

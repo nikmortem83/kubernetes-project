@@ -1,0 +1,23 @@
+loki:
+  serviceName: loki
+  port: 3100
+
+promtail:
+  enabled: true
+  config:
+    clients:
+      - url: http://loki:3100/loki/api/v1/push
+
+pipelineStages:
+  - json:
+      expressions:
+        level: level
+        msg: msg
+
+scrapeConfig:
+  jobName: system-logs
+  staticConfigs:
+    - targets: ['localhost']
+      labels:
+        job: system
+        __path__: /var/log/*.log
