@@ -50,10 +50,7 @@ kubectl create ns boutique
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-? helm repo add loki https://grafana.github.io/loki/charts
 helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
-
-
 
 # Ingress
 helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
@@ -67,7 +64,7 @@ helm upgrade --install loki helm/logging/loki-chart \
 
 helm uninstall loki helm/logging/loki-chart -n logging
 
-helm upgrade --install loki grafana/loki \
+? helm upgrade --install loki grafana/loki \
   --namespace logging \
   -f helm/logging/values-loki.yaml
 
@@ -81,7 +78,7 @@ helm upgrade --install promtail grafana/promtail \
 
 helm uninstall promtail grafana/promtail -n logging
 
-helm upgrade --install promtail grafana/promtail \
+? helm upgrade --install promtail grafana/promtail \
   --namespace logging \
   --set loki.serviceName=loki \
   -f helm/logging/values-promtail.yaml
@@ -92,6 +89,12 @@ helm uninstall promtail --namespace logging
 helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   -f helm/monitoring/values-prometheus.yaml
+
+helm uninstall kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring
+
+? kubectl apply -f helm/monitoring/servicemonitor.yaml
+
+да у нас много микросервисов со своими deployment и порт web (80, 8080) у frontend.yaml, adservice.yaml grpc (9555), cartservice.yaml grpc (7070), ...
 
 # Jaeger
 helm upgrade --install jaeger jaegertracing/jaeger \

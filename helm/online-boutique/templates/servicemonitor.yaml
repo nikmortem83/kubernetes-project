@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "onlineboutique.fullname" . }}-monitor
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "onlineboutique.name" . }}
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template "onlineboutique.name" . }}
+  endpoints:
+    - port: web
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
