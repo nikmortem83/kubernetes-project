@@ -123,6 +123,9 @@ spec:
     port: 4317
     protocol: TCP
     targetPort: 4317
+  - name: metrics
+    containerPort: 8888
+    protocol: TCP
   selector:
     app: {{ .Values.opentelemetryCollector.name }}
   type: ClusterIP
