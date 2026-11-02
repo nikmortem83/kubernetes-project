@@ -124,7 +124,7 @@ spec:
     protocol: TCP
     targetPort: 4317
   - name: metrics
-    containerPort: 8888
+    containerPort: 8080
     protocol: TCP
   selector:
     app: {{ .Values.opentelemetryCollector.name }}
