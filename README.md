@@ -9,9 +9,11 @@
 #### │   ├── variables.tf
 #### │   └── outputs.tf
 ### ├── helm/
+#### │   ├── kiali/                    Kiali
+#### │   │   └── values-kiali.yaml
 #### │   ├── logging/                  Loki + Promtail
 #### │   │   └── values-loki.yaml
-#### │   ├── monitoring/               kube-prometheus-stack
+#### │   ├── monitoring/               Kube-prometheus-stack
 #### │   │   ├── values-prometheus.yaml
 #### │   │   └── servicemonitor.yaml   для сервисов Online Boutique
 #### │   ├── tracing/                  Jaeger
@@ -31,7 +33,7 @@
 
 ## ✨ Разработка в minikube
 ### 1. Поднимаем minikube и необходимые аддоны
-minikube start --driver=docker --nodes=2 --memory=6144 --cpus=3
+minikube start --driver=docker --nodes=3 --memory=3072 --cpus=2
 minikube addons enable metrics-server
 kubectl config use-context minikube
 
@@ -64,6 +66,7 @@ istioctl uninstall --purge -y
 
 #### Через helm
 helm repo add istio https://istio-release.storage.googleapis.com/charts && helm repo update
+
 helm install istio-base istio/base -n istio-system --create-namespace
 helm install istiod istio/istiod -n istio-system --wait
 helm install istio-ingress istio/gateway -n istio-ingress --create-namespace
@@ -117,14 +120,14 @@ helm upgrade --install loki helm/logging/loki-chart \
 #### удаление helm uninstall loki -n logging
 
 #### Promtail
-helm upgrade --install promtail grafana/promtail \
+? helm upgrade --install promtail grafana/promtail \
   --namespace logging \
   --create-namespace \
   --set loki.serviceName=loki
 
 #### удаление helm uninstall promtail grafana/promtail -n logging
 
-? helm upgrade --install promtail grafana/promtail \
+helm upgrade --install promtail grafana/promtail \
   --namespace logging \
   --set loki.serviceName=loki \
   -f helm/logging/values-promtail.yaml
@@ -167,6 +170,16 @@ kubectl apply -f manifests/mon-networkpolicy.yaml
 ### удаление
 kubectl delete -f manifests/mon-prometheusrule.yaml 
 kubectl delete -f manifests/mon-networkpolicy.yaml
+
+### 8. 📊 Устанавливаем Kiali
+helm repo add kiali https://kiali.org/helm-charts
+helm repo update
+
+helm install kiali-server kiali/kiali-server \
+  -n istio-system \
+  -f helm/kiali/values-kiali.yaml
+
+### 📈 «Observability-стек дополнен Kiali — консолью управления service mesh. Kiali интегрирован с Prometheus (метрики Envoy через PodMonitor на порту 15020), Grafana (переходы на дашборды Istio) и Jaeger (распределённая трассировка через Telemetry API с extensionProvider opentelemetry). Граф трафика в Kiali отображает топологию взаимодействия микросервисов Online Boutique, health-статусы и распределение ответов по кодам.»
 
 #### 🌟 ./scripts/deploy-all.sh (chmod +x kubernetes-project/scripts/deploy-all.sh)
 

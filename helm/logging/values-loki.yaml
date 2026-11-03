@@ -1,8 +1,5 @@
-# helm/logging/values-loki.yaml — singleBinary + локальное хранение, без баккетов
-
 mode: singleBinary
 
-# Отключаем компоненты, которые требуют bucketNames
 write:
   enabled: false
 read:
@@ -16,15 +13,12 @@ queryScheduler:
 indexGateway:
   enabled: false
 
-# Локальное хранение (boltdb-shipper + filesystem) будет включено автоматически
 storage:
   type: filesystem
 
-# Никаких PVC — для minikube это нормально
 persistence:
   enabled: false
 
-# Отключаем лишние компоненты
 ruler:
   enabled: false
 compactor:

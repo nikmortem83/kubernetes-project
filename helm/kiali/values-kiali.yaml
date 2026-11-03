@@ -1,0 +1,36 @@
+auth:
+  strategy: anonymous
+
+deployment:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+external_services:
+  prometheus:
+    url: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
+    cache_enabled: true
+    cache_duration: 10
+
+  grafana:
+    enabled: true
+    internal_url: "http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80"
+    external_url: "http://localhost:3000"
+    dashboards:
+      - name: "Istio Mesh Dashboard"
+      - name: "Istio Service Dashboard"
+      - name: "Istio Wasm Extension Dashboard"
+
+  tracing:
+    enabled: true
+    provider: jaeger
+    internal_url: "http://jaeger-query.tracing.svc.cluster.local:16685/jaeger"
+    use_grpc: true
+    external_url: "http://localhost:16686/jaeger"
+
+server:
+  web_root: /kiali
