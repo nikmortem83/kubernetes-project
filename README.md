@@ -134,18 +134,9 @@ helm upgrade --install promtail grafana/promtail \
 
 kubectl label namespace boutique istio-injection=enabled
 
-helm install boutique ./helm/online-boutique \
-  --namespace boutique --create-namespace \
-  --set networkPolicies.create=true \
-  --set sidecars.create=true \
-  --set serviceAccounts.create=true \
-  --set authorizationPolicies.create=true \
-  --set frontend.externalService=true \
-  --set frontend.virtualService.create=true \
-  --set frontend.virtualService.gateway.name=asm-ingressgateway \
-  --set frontend.virtualService.gateway.namespace=asm-ingress \
-  --set frontend.virtualService.gateway.labelKey=asm \
-  --values ./helm/online-boutique/values.yaml
+helm upgrade --install boutique helm/online-boutique \
+  -n boutique \
+  -f helm/online-boutique/values-prod.yaml
 
 #### удаление helm uninstall boutique -n boutique
 
