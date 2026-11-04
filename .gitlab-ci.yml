@@ -1,107 +1,13 @@
-# =============================================================
-# Единый пайплайн: minikube / cloud
-# DEPLOY_TARGET=minikube  -> деплой в локальный minikube через scripts/
-# DEPLOY_TARGET=cloud     -> Terraform (YC) + деплой платформы + ArgoCD sync
-# =============================================================
-
-stages:
-  - validate
-  - plan
-  - deploy
-  - gitops
-
-variables:
-  DEPLOY_TARGET: "minikube"        # minikube | cloud — меняется в UI/на триггере
-  TF_DIR: "terraform"
-  ARGOCD_APP: "boutique"
-  GIT_DEPTH: "1"
-
-default:
-  image: alpine:3.20
-  before_script:
-    - apk add --no-cache bash curl unzip jq git
-    # --- CLI: kubectl, helm, terraform (с зеркала Яндекса), argocd, yc ---
-    - |
-      if [ ! -x /usr/local/bin/kubectl ]; then
-        curl -fsSL -o /usr/local/bin/kubectl https://dl.k8s.io/release/v1.30.7/bin/linux/amd64/kubectl
-        chmod +x /usr/local/bin/kubectl
-      fi
-      curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-      curl -fsSL -o /tmp/tf.zip "https://hashicorp-releases.yandexcloud.net/terraform/1.16.5/terraform_1.16.5_linux_amd64.zip"
-      unzip -o /tmp/tf.zip -d /usr/local/bin && chmod +x /usr/local/bin/terraform
-      curl -fsSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-      chmod +x /usr/local/bin/argocd
-      curl -fsSL https://yandex.cloud/install.sh | bash   # yc CLI (в PATH ~/.yandex-cloud/bin)
-
-# ---------------------------------------------------------------
-# STAGE: validate — всегда
-# ---------------------------------------------------------------
-helm-lint:
-  stage: validate
-  script:
-    - helm lint helm/online-boutique
-    - helm lint helm/logging/loki-chart
-    - helm template helm/online-boutique > /dev/null && echo "OK: chart renders"
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH
-
-terraform-fmt-validate:
-  stage: validate
-  script:
-    - cd $TF_DIR
-    - terraform fmt -check -diff
-    - terraform init -backend=false -input=false
-    - terraform validate
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH
-
-kustomize-manifests-lint:
-  stage: validate
-  script:
-    - kubectl apply --dry-run=client -f manifests/frontend-asm-ingress.yaml
-    - kubectl apply --dry-run=client -f argocd/boutique-app.yaml
-    - echo "OK: manifests valid (кластер не нужен для dry-run=client)"
-  allow_failure: true    # dry-run=client без кластера не проверяет CRD-схемы
-
-# ---------------------------------------------------------------
-# STAGE: plan — только для cloud
-# ---------------------------------------------------------------
-terraform-plan:
-  stage: plan
-  script:
-    - cd $TF_DIR
-    - |
-      cat > terraform.tfvars <<EOF
-      yc_token     = "$YC_TOKEN"
-      yc_cloud_id  = "$YC_CLOUD_ID"
-      yc_folder_id = "$YC_FOLDER_ID"
-      cluster_name = "$CLUSTER_NAME"
-      node_count   = $NODE_COUNT
-      EOF
-    - terraform init -input=false
-    - terraform plan -input=false -out=tfplan
-    - terraform show -json tfplan > tfplan.json
-  artifacts:
-    paths: [terraform/tfplan, terraform/tfplan.json]
-    expire_in: 1 week
-  rules:
-    - if: '$DEPLOY_TARGET == "cloud"'
-
-# ---------------------------------------------------------------
-# STAGE: deploy
-# ---------------------------------------------------------------
 deploy-minikube:
   stage: deploy
-  tags: [shell, minikube]     # раннер на твоей Debian-машине, shell executor
+  tags: [shell, minikube]
   script:
     - ./scripts/minikube.sh up
-    - ./scripts/deploy-all.sh
+    - ./scripts/deploy-all.sh dev
   environment:
-    name: minikube
+    name: dev
   rules:
-    - if: '$DEPLOY_TARGET == "minikube"'
+    - if: '$DEPLOY_TARGET == "minikube" && $CI_COMMIT_BRANCH == "Kubernetes-project-dev"'
 
 deploy-cloud:
   stage: deploy
@@ -112,28 +18,9 @@ deploy-cloud:
     - CLUSTER_ID=$(terraform output -raw cluster_id)
     - ~/.yandex-cloud/bin/yc managed-kubernetes cluster get-credentials --id $CLUSTER_ID --external
     - kubectl get nodes
-    # деплой платформы (istio, мониторинг, логирование, kiali) — приложение уйдёт под ArgoCD
     - cd "$CI_PROJECT_DIR"
-    - ./scripts/deploy-all.sh
+    - ./scripts/deploy-all.sh prod
   environment:
-    name: cloud
+    name: prod
   rules:
-    - if: '$DEPLOY_TARGET == "cloud"'
-
-# ---------------------------------------------------------------
-# STAGE: gitops — ArgoCD синхронизация boutique (только cloud)
-# ---------------------------------------------------------------
-argocd-sync:
-  stage: gitops
-  script:
-    - |
-      ARGOCD_SERVER=$(kubectl get svc argocd-server -n argocd \
-        -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-      [ -n "$ARGOCD_SERVER" ] || ARGOCD_SERVER=$(kubectl get svc argocd-server -n argocd \
-        -o jsonpath='{.spec.ports[0].nodePort}')
-    - argocd login "$ARGOCD_SERVER" --username admin --password "$ARGOCD_ADMIN_PASSWORD" --insecure --grpc-web
-    - argocd app sync $ARGOCD_APP --prune
-    - argocd app wait $ARGOCD_APP --health --timeout 300
-    - argocd app history $ARGOCD_APP | tail -5
-  rules:
-    - if: '$DEPLOY_TARGET == "cloud"'
+    - if: '$DEPLOY_TARGET == "cloud" && $CI_COMMIT_BRANCH == "Kubernetes-project-prod"'

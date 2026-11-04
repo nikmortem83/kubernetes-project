@@ -88,9 +88,15 @@ helm upgrade --install jaeger jaegertracing/jaeger \
 
 kubectl label namespace monitoring istio-injection=enabled
 
+##### dev
 helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   -f helm/monitoring/values-prometheus.yaml
+
+##### prod
+helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  -f helm/monitoring/values-prometheus-prod.yaml
 
 #### удаление helm uninstall kube-prometheus-stack -n monitoring
 
@@ -134,6 +140,7 @@ helm upgrade --install promtail grafana/promtail \
 
 kubectl label namespace boutique istio-injection=enabled
 
+### dev
 helm install boutique ./helm/online-boutique \
   --namespace boutique --create-namespace \
   --set networkPolicies.create=true \
@@ -146,6 +153,11 @@ helm install boutique ./helm/online-boutique \
   --set frontend.virtualService.gateway.namespace=asm-ingress \
   --set frontend.virtualService.gateway.labelKey=asm \
   --values ./helm/online-boutique/values.yaml
+
+#### prod
+helm upgrade --install boutique helm/online-boutique \
+  -n boutique \
+  -f helm/online-boutique/values-prod.yaml
 
 #### удаление helm uninstall boutique -n boutique
 
@@ -248,7 +260,11 @@ sudo mv /tmp/argocd /usr/local/bin/
 argocd version --client
 
 #### 🌟 Установка приложения:
+##### dev
 kubectl apply -f argocd/boutique-app.yaml
+
+##### prod
+kubectl apply -f argocd/boutique-app-prod.yaml
 
 #### Проверка:
 argocd app list

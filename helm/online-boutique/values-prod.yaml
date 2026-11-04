@@ -1,0 +1,38 @@
+replicas:
+  frontend: 2
+  productcatalogservice: 2
+  cartservice: 2
+
+resources:
+  requests:
+    frontend:
+      cpu: 200m
+      memory: 128Mi
+    cartservice:
+      cpu: 300m
+      memory: 256Mi 
+  limits:
+    frontend:
+      cpu: 500m
+      memory: 256Mi
+    cartservice:
+      cpu: 1
+      memory: 512Mi
+
+frontend:
+  externalService: false
+  virtualService:
+    create: true
+    gateway:
+      name: asm-ingressgateway
+      namespace: asm-ingress
+      labelKey: asm
+
+networkPolicies:
+  create: true
+sidecars:
+  create: true
+serviceAccounts:
+  create: true
+authorizationPolicies:
+  create: true
