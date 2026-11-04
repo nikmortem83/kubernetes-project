@@ -203,8 +203,8 @@ helm upgrade --install kiali-server kiali/kiali-server \
 
 ## 🎉 Развертывание в Yandex Cloud - kubernetes-project-prod
 
-### 🚀 1. Устанавливаем Terraform
-
+### 🚀 1. Terraform
+#### 🌟 Установка:
 cd /tmp
 wget https://hashicorp-releases.yandexcloud.net/terraform/1.16.5/terraform_1.16.5_linux_amd64.zip
 sudo apt install -y unzip   # если unzip ещё не стоит
@@ -212,8 +212,22 @@ unzip terraform_1.16.5_linux_amd64.zip
 sudo mv terraform /usr/local/bin/
 terraform -v
 
-### 🚀 2. Устанавливаем ArgoCD
+#### 🌟 Порядок использования:
 
+cd terraform
+terraform init         # иницилизация
+terraform validate     # валидация
+terraform plan         # планирование
+terraform apply        # создание кластера
+
+CLUSTER_ID=$(terraform output -raw cluster_id)
+yc managed-kubernetes cluster get-credentials --id $CLUSTER_ID --external
+kubectl get nodes
+
+terraform destroy      # удаление всей инфраструктуры
+
+### 🚀 2. ArgoCD
+#### 🌟 Установка:
 helm repo add argo https://argoproj.github.io/argo-helm
 helm repo update
 
@@ -234,4 +248,10 @@ chmod +x /tmp/argocd
 sudo mv /tmp/argocd /usr/local/bin/
 argocd version --client
 
+#### 🌟 Установка приложения:
+kubectl apply -f argocd/boutique-app.yaml
 
+#### Проверка:
+argocd app list
+argocd app get boutique      # состояние, health, последние синки
+argocd app sync boutique     # ручной sync, если нужен немедленный прогон
