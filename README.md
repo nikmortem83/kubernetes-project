@@ -88,9 +88,15 @@ helm upgrade --install jaeger jaegertracing/jaeger \
 
 kubectl label namespace monitoring istio-injection=enabled
 
+##### dev
 helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   -f helm/monitoring/values-prometheus.yaml
+
+##### prod
+helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  -f helm/monitoring/values-prometheus-prod.yaml
 
 #### удаление helm uninstall kube-prometheus-stack -n monitoring
 
@@ -254,7 +260,11 @@ sudo mv /tmp/argocd /usr/local/bin/
 argocd version --client
 
 #### 🌟 Установка приложения:
+##### dev
 kubectl apply -f argocd/boutique-app.yaml
+
+##### prod
+kubectl apply -f argocd/boutique-app-prod.yaml
 
 #### Проверка:
 argocd app list

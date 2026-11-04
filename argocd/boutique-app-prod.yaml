@@ -9,12 +9,12 @@ spec:
   project: default
   source:
     repoURL: https://github.com/nikmortem83/kubernetes-project.git
-    targetRevision: Kubernetes-project-prod       # prod-ветка
+    targetRevision: Kubernetes-project-prod
     path: helm/online-boutique
     helm:
       releaseName: boutique
       valueFiles:
-        - values-prod.yaml                        # prod-профиль
+        - values-prod.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: boutique
