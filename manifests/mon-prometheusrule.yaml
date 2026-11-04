@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: boutique-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: boutique
+      rules:
+        - alert: BoutiqueHighErrorRate
+          expr: rate(istio_requests_total{response_code=~"5..", reporter="destination", destination_workload_namespace="boutique"}[5m]) > 0.1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High error rate 5xx в Online Boutique"

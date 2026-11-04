@@ -1,0 +1,14 @@
+provisioner:
+  enabled: true
+collector:
+  options:
+    span-storage-type: memory
+    memory.max-traces: 100000
+query:
+  options:
+    es.server-urls: ""
+    es.use-aliases: false
+allInOne:
+  enabled: false
+storage:
+  type: memory

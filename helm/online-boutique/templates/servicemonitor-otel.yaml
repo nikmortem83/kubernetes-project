@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "onlineboutique.fullname" . }}-otel-monitor
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: opentelemetrycollector
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: opentelemetrycollector
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}

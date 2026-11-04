@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: boutique
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/nikmortem83/kubernetes-project.git
+    targetRevision: main
+    path: helm/online-boutique
+
+    helm:
+      releaseName: boutique
+      valueFiles:
+        - $values/helm/online-boutique/values.yaml
+      parameters:
+        - name: frontend.externalService
+          value: "false"
+        - name: frontend.virtualService.create
+          value: "true"
+        - name: frontend.virtualService.gateway.name
+          value: asm-ingressgateway
+        - name: frontend.virtualService.gateway.namespace
+          value: asm-ingress
+        - name: frontend.virtualService.gateway.labelKey
+          value: asm
+        - name: networkPolicies.create
+          value: "true"
+        - name: sidecars.create
+          value: "true"
+        - name: serviceAccounts.create
+          value: "true"
+        - name: authorizationPolicies.create
+          value: "true"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: boutique
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,30 @@
+mode: singleBinary
+
+write:
+  enabled: false
+read:
+  enabled: false
+distributor:
+  enabled: false
+queryFrontend:
+  enabled: false
+queryScheduler:
+  enabled: false
+indexGateway:
+  enabled: false
+
+storage:
+  type: filesystem
+
+persistence:
+  enabled: false
+
+ruler:
+  enabled: false
+compactor:
+  enabled: false
+
+limitsConfig:
+  ingestionRate: 10MB
+  ingestionBurstSize: 15MB
+  queryTimeout: 30s
