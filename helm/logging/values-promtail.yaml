@@ -21,3 +21,20 @@ scrapeConfig:
       labels:
         job: system
         __path__: /var/log/*.log
+
+config:
+  filewatcher:
+    watch_config_files: false
+  scrape_configs:
+    - job_name: kubernetes-pods
+      kubernetes_sd_configs:
+        - role: pod
+
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace]
+          action: keep
+          regex: boutique|istio-system
+
+        - source_labels: [__meta_kubernetes_pod_label_app]
+          action: drop
+          regex: istio-ingressgateway|istio-egressgateway

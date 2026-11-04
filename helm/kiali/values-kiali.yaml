@@ -28,7 +28,7 @@ external_services:
   tracing:
     enabled: true
     provider: jaeger
-    internal_url: "http://jaeger-query.tracing.svc.cluster.local:16685/jaeger"
+    internal_url: "http://jaeger.tracing.svc.cluster.local:16685/jaeger"
     use_grpc: true
     external_url: "http://localhost:16686/jaeger"
 

@@ -13,4 +13,4 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "Высокий процент ошибок 5xx в Online Boutique"
+            summary: "High error rate 5xx в Online Boutique"

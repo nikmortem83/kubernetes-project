@@ -1,41 +1,39 @@
 # Проектная работа "Развёртывание и управление Managed кластерами Kubernetes с использованием Terraform и GitLab-CI"
 # Морозов Н.Н. Kubernetes-2026-05
 
-## 📌 kubernetes-project/
-### ├── .gitlab-ci.yml                 единый пайплайн (с флагами minikube/cloud)
-### ├── README.md                      документация: шаги, переменные, как повторить
-### ├── terraform/                     IaC для Managed K8s (Yandex)
-#### │   ├── main.tf
-#### │   ├── variables.tf
-#### │   └── outputs.tf
-### ├── helm/
+### 📌 kubernetes-project/
+#### ├── .gitlab-ci.yml                Единый пайплайн (с флагами minikube/cloud)
+#### ├── README.md                     Документация: шаги, переменные, как повторить
+#### ├── terraform/                    IaC для Managed K8s (Yandex Cloud)
+#### ├── helm/                         Helm проекта
 #### │   ├── kiali/                    Kiali
-#### │   │   └── values-kiali.yaml
 #### │   ├── logging/                  Loki + Promtail
-#### │   │   └── values-loki.yaml
 #### │   ├── monitoring/               Kube-prometheus-stack
-#### │   │   ├── values-prometheus.yaml
-#### │   │   └── servicemonitor.yaml   для сервисов Online Boutique
 #### │   ├── tracing/                  Jaeger
-#### │   │   └── values-jaeger.yaml
 #### │   └── online-boutique/          Helm-чарт приложения (на базе microservices-demo)
-#### │       ├── Chart.yaml
-#### │       ├── values.yaml           основные настройки всех микросервисов
-#### │       └── templates/            манифесты всех сервисов
-### ├── argocd/                        GitOps-манифесты (Application CRD)
-#### │   └── boutique-app.yaml
-### ├── manifests/                     дополнительные манифесты
-### └── scripts/
-####     ├── minikube.sh               запуск minikube + включение нужных аддонов
-####     └── deploy-all.sh             универсальный скрипт деплоя всех компонентов
+#### ├── argocd/                       GitOps-манифесты (Application CRD)
+#### ├── manifests/                    Дополнительные манифесты
+#### └── scripts/                      Скрипты запуска
 
 ## 📌 MVP платформа: Managed K8s (minikube → YC), мониторинг, логирование, CI/CD, приложение Online Boutique
+[![Screenshot Struct-app](/manifests/img/Struct-app.png)](/manifests/img/Struct-app.png)
 
-## ✨ Разработка в minikube
+## ✨ Разработка в minikube - kubernetes-project-dev
 ### 1. Поднимаем minikube и необходимые аддоны
 minikube start --driver=docker --nodes=3 --memory=3072 --cpus=2
 minikube addons enable metrics-server
 kubectl config use-context minikube
+
+### 🔥 Увеличение лимитов inotify instances/watches на нодах
+minikube ssh
+sysctl fs.inotify.max_user_instances fs.inotify.max_user_watches
+ulimit -n
+sudo sysctl -w fs.inotify.max_user_instances=1024
+sudo sysctl -w fs.inotify.max_user_watches=1048576
+sudo sysctl -w fs.file-max=262144
+echo -e "fs.inotify.max_user_instances=1024\nfs.inotify.max_user_watches=1048576" | sudo tee /etc/sysctl.d/99-promtail.conf
+sudo sysctl --system
+exit
 
 #### 🌟 ./scripts/minikube.sh (chmod +x kubernetes-project/scripts/minikube.sh)
 
@@ -45,12 +43,14 @@ kubectl create ns logging
 kubectl create ns tracing
 kubectl create ns boutique
 kubectl create ns asm-ingress
-kubectl create ns istio-ingress
+kubectl create ns istio-system
 
-### 3. Установливаем платформенные компоненты через Helm
+### 3. Установливаем платформенные компоненты Helm
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+helm repo add istio https://istio-release.storage.googleapis.com/charts
+helm repo add kiali https://kiali.org/helm-charts
 helm repo update
 
 ### ⛵️ 4. Установка Istiod
@@ -64,14 +64,30 @@ istioctl install --set profile=demo -y
 #### Удаляем Istio
 istioctl uninstall --purge -y
 
-#### Через helm
-helm repo add istio https://istio-release.storage.googleapis.com/charts && helm repo update
+        |\          
+        | \         
+        |  \        
+        |   \       
+      /||    \      
+     / ||     \     
+    /  ||      \    
+   /   ||       \   
+  /    ||        \  
+ /     ||         \ 
+/______||__________\
+____________________
+  \__       _____/  
+     \_____/  
 
+#### Через helm
 helm install istio-base istio/base -n istio-system --create-namespace
 helm install istiod istio/istiod -n istio-system --wait
-helm install istio-ingress istio/gateway -n istio-ingress --create-namespace
+helm install asm-ingressgateway istio/gateway -n asm-ingress --create-namespace
 
-### 5. Устанавливаем Jaeger
+### 🚀 5. Устанавливаем Jaeger
+
+kubectl label namespace tracing istio-injection=enabled
+
 helm upgrade --install jaeger jaegertracing/jaeger \
   --namespace tracing \
   -f helm/tracing/values-jaeger.yaml
@@ -82,13 +98,16 @@ helm upgrade --install jaeger jaegertracing/jaeger \
 
 [![Screenshot Jaeger](/manifests/img/Jaeger.png)](/manifests/img/Jaeger.png)
 
-### 6. Устанавливаем мониторинг (Prometheus + Grafana + Alertmanager)
+### 🚀 6. Устанавливаем мониторинг (Prometheus + Grafana + Alertmanager)
 #### 💡 Включаем ServiceMonitor, чтобы потом подхватывать метрики приложения
+
+kubectl label namespace monitoring istio-injection=enabled
+
 helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   -f helm/monitoring/values-prometheus.yaml
 
-#### удаление helm uninstall kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring
+#### удаление helm uninstall kube-prometheus-stack -n monitoring
 
 [![Screenshot Prometheus](/manifests/img/Prometheus.png)](/manifests/img/Prometheus.png)
 
@@ -96,36 +115,23 @@ helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheu
 #### Frontend (HTTP) — метрики собираются напрямую через ServiceMonitor в Prometheus.
 #### gRPC‑сервисы (cart, payment, shipping и др.) — не экспортируют HTTP‑метрики напрямую. Вместо этого они отправляют трейсы и логи в OpenTelemetry Collector, который агрегирует данные и предоставляет метрики для Prometheus. Это позволяет избежать установки экспортеров в каждый gRPC‑под и обеспечивает единообразие сбора телеметрии.»
 
-minikube service kube-prometheus-stack-prometheus --namespace=monitoring
-
 ### Prometheus: kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:9090 переход на http://localhost:9090/query
 ### Grafana: kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80 переход на http://localhost:3000 (admin)
 ### Alertmanager: kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9093:9093 переход на http://localhost:9093
 
 [![Screenshot Grafana](/manifests/img/Grafana.png)](/manifests/img/Grafana.png)
 
-### 7. Устанавливаем логирование (Loki + Promtail)
+### 🚀 7. Устанавливаем логирование (Loki + Promtail)
+
+kubectl label namespace logging istio-injection=enabled
+
 #### Loki
 helm upgrade --install loki helm/logging/loki-chart \
   --namespace logging \
   --create-namespace \
   -f helm/logging/loki-chart/values.yaml
 
-#### удаление helm uninstall loki helm/logging/loki-chart -n logging
-
-? helm upgrade --install loki grafana/loki \
-  --namespace logging \
-  -f helm/logging/values-loki.yaml
-
 #### удаление helm uninstall loki -n logging
-
-#### Promtail
-? helm upgrade --install promtail grafana/promtail \
-  --namespace logging \
-  --create-namespace \
-  --set loki.serviceName=loki
-
-#### удаление helm uninstall promtail grafana/promtail -n logging
 
 helm upgrade --install promtail grafana/promtail \
   --namespace logging \
@@ -139,10 +145,13 @@ helm upgrade --install promtail grafana/promtail \
 ### Loki+Promtail: kubectl --namespace logging port-forward daemonset/promtail 3101 переход на http://localhost:3101/metrics
 
 ### 🔥 6. Устанавливаем приложение Online Boutique by Google
+[![Screenshot Screen-app](/manifests/img/Screen-app.png)](/manifests/img/Screen-app.png)
+
 kubectl label namespace boutique istio-injection=enabled
 
 helm install boutique ./helm/online-boutique \
   --namespace boutique --create-namespace \
+  --set frontend.externalService=true \
   --set networkPolicies.create=true \
   --set sidecars.create=true \
   --set serviceAccounts.create=true \
@@ -163,27 +172,49 @@ helm install boutique ./helm/online-boutique \
     export SERVICE_IP=$(kubectl get svc --namespace asm-ingress asm-ingressgateway --template "{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}")
     echo http://$SERVICE_IP
 
-### 7. 🔎 Добавление правил и политик мониторинга
+[![Screenshot Screen-dev](/manifests/img/Screen-dev.png)](/manifests/img/Screen-dev.png)
+
+### 🔎 7. Добавление правил и политик
+kubectl apply -f manifests/frontend-asm-ingress.yaml
+kubectl apply -f manifests/istio-metrics.yaml
 kubectl apply -f manifests/mon-prometheusrule.yaml 
 kubectl apply -f manifests/mon-networkpolicy.yaml
 
-### удаление
+### удаление правил и политик
+kubectl delete -f manifests/frontend-asm-ingress.yaml
+kubectl delete -f manifests/istio-metrics.yaml
 kubectl delete -f manifests/mon-prometheusrule.yaml 
 kubectl delete -f manifests/mon-networkpolicy.yaml
 
-### 8. 📊 Устанавливаем Kiali
-helm repo add kiali https://kiali.org/helm-charts
-helm repo update
+### 📊 8. Устанавливаем Kiali
 
-helm install kiali-server kiali/kiali-server \
+helm upgrade --install kiali-server kiali/kiali-server \
   -n istio-system \
   -f helm/kiali/values-kiali.yaml
 
+#### удаление helm uninstall kiali-server -n istio-system
+
+### Kiali: kubectl port-forward svc/kiali -n istio-system 20001:20001 переход на http://localhost:20001
+
+[![Screenshot Screen-dev](/manifests/img/Kiali-over.png)](/manifests/img/Kiali-over.png)
+
+[![Screenshot Screen-dev](/manifests/img/Kiali.png)](/manifests/img/Kiali.png)
+
 ### 📈 «Observability-стек дополнен Kiali — консолью управления service mesh. Kiali интегрирован с Prometheus (метрики Envoy через PodMonitor на порту 15020), Grafana (переходы на дашборды Istio) и Jaeger (распределённая трассировка через Telemetry API с extensionProvider opentelemetry). Граф трафика в Kiali отображает топологию взаимодействия микросервисов Online Boutique, health-статусы и распределение ответов по кодам.»
+
+[![Screenshot Screen-dev](/manifests/img/Kiali-app.png)](/manifests/img/Kiali-app.png)
+
+[![Screenshot Screen-dev](/manifests/img/Kiali-control.png)](/manifests/img/Kiali-control.png)
+
+[![Screenshot Screen-dev](/manifests/img/Kiali-data.png)](/manifests/img/Kiali-data.png)
+
+[![Screenshot Screen-dev](/manifests/img/Kiali-ser.png)](/manifests/img/Kiali-ser.png)
 
 #### 🌟 ./scripts/deploy-all.sh (chmod +x kubernetes-project/scripts/deploy-all.sh)
 
-## 🎉 Развертывание в Yandex Cloud
+## 🎉 Развертывание в Yandex Cloud - kubernetes-project-prod
+
+### 🚀 1. Устанавливаем Terraform
 
 
 
