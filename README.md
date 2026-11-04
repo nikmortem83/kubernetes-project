@@ -283,3 +283,45 @@ git push
 ##### после зелёного пайплайна в cloud:
 kubectl config get-contexts        # контекст облачного кластера активен
 argocd app get boutique            # Healthy + Synced
+
+
+### 🔥 Схема гибрида GitHub - GitLab
+##### GitHub (nikmortem83/kubernetes-project)  ← коммит
+#####         │  pull-мирроринг (GitLab тянет изменения)
+#####         ▼
+##### GitLab (kubernetes-project)              ← здесь работает CI/CD
+#####         │  пайплайн: validate → plan → deploy → argocd-sync
+#####         ▼
+##### minikube (shell-раннер) / Yandex Cloud (Terraform + ArgoCD)
+
+##### 1. Создаём проект в GitLab с зеркалом
+gitlab.com → New project → Import project → Repository by URL
+
+##### 2. Включаем и настраиваем зеркалирование
+glab api projects/<project_id> -X PUT \
+  -f mirror=true \
+  -f mirror_trigger_builds=true \
+  -f pull_mirror="https://<user>:<PAT>@github.com/nikmortem83/kubernetes-project.git"
+
+##### 3. Запускаем первый синк вручную
+glab api projects/<project_id> -X POST /mirror/pull
+
+##### 4. Регистрируем shell-раннер
+
+##### 5. Запуск пайплайна:
+glab auth login # один раз - токен GitLab
+glab ci run -R nikmortem83/kubernetes-project -f DEPLOY_TARGET=cloud
+
+##### Рабочий цикл в гибриде:
+cd ~/Kubernetes-2026-05/kubernetes-project
+git remove -v  # origin должен указывать на github.com
+git add .
+git commit -m "add  gateway manifest"
+git push origin main
+
+###### GitLab подтягивает
+glab api project/<project_id> -X /mirror/pull
+
+###### Пайплан самостоятельно стартует (mirror_trigger_builds)
+glab ci list -R nikmortem83/kubernetes-project
+glab ci status -R nikmortem83/kubernetes-project
