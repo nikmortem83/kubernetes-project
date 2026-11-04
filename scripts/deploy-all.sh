@@ -1,140 +1,73 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ------------------------------------------------------------------------------
-# deploy-all.sh — полный деплой MVP платформы на minikube
-# Стек: NGINX Ingress + kube-prometheus-stack + Loki + Jaeger + Online Boutique
-# Требования: minikube запущен, minikube tunnel запущен в отдельном терминале
-# ------------------------------------------------------------------------------
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+log() { echo -e "\n\033[1;34m==> $1\033[0m"; }
 
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HELM_DIR="$BASE_DIR/helm"
-
-echo "🚀 Запуск полного деплоя MVP платформы..."
-
-# Проверка контекста
-CURRENT_CONTEXT=$(kubectl config current-context)
-if [[ "$CURRENT_CONTEXT" != "minikube" ]]; then
-  echo "❌ Ошибка: текущий контекст kubectl — '$CURRENT_CONTEXT'. Нужен 'minikube'."
-  echo "💡 Запустите: minikube start (или проверьте, что minikube.sh уже отработал)."
-  exit 1
-fi
-
-# Создание namespace-ов
-echo "📦 Создание namespace-ов..."
-declare -a NAMESPACES=("ingress-nginx" "monitoring" "logging" "tracing" "boutique")
-for ns in "${NAMESPACES[@]}"; do
-  kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f -
-done
-
-# Обновление репозиториев Helm
-echo "🔄 Обновление Helm-репозиториев..."
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx > /dev/null 2>&1 || true
-helm repo add grafana https://grafana.github.io/helm-charts > /dev/null 2>&1 || true
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts > /dev/null 2>&1 || true
-helm repo add loki https://grafana.github.io/loki/charts > /dev/null 2>&1 || true
-helm repo add jaegertracing https://jaegertracing.github.io/helm-charts > /dev/null 2>&1 || true
+log "1/8 Репозитории Helm"
+helm repo add grafana https://grafana.github.io/helm-charts 2>/dev/null || true
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
+helm repo add jaegertracing https://jaegertracing.github.io/helm-charts 2>/dev/null || true
+helm repo add istio https://istio-release.storage.googleapis.com/charts 2>/dev/null || true
+helm repo add kiali https://kiali.org/helm-charts 2>/dev/null || true
 helm repo update
 
-# Установка NGINX Ingress Controller
-echo "🌐 Установка NGINX Ingress Controller..."
-helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
-  --namespace ingress-nginx \
-  --create-namespace \
-  -f "$HELM_DIR/ingress/values-ingress.yaml"
+log "2/8 Namespace"
+for ns in monitoring logging tracing boutique asm-ingress istio-system; do
+  kubectl get ns "$ns" &>/dev/null || kubectl create ns "$ns"
+done
+kubectl label ns tracing    istio-injection=enabled --overwrite
+kubectl label ns monitoring istio-injection=enabled --overwrite
+kubectl label ns logging    istio-injection=enabled --overwrite
+kubectl label ns boutique   istio-injection=enabled --overwrite
 
-# Установка Loki + Promtail
-echo "📝 Установка Loki (логирование)..."
-helm upgrade --install loki loki/loki-stack \
-  --namespace logging \
-  --create-namespace \
-  -f "$HELM_DIR/logging/values-loki.yaml"
+log "3/8 Istio: base + istiod + gateway-чарт"
+helm upgrade --install istio-base istio/base -n istio-system
+helm upgrade --install istiod istio/istiod -n istio-system --wait
+helm upgrade --install asm-ingressgateway istio/gateway -n asm-ingress \
+  --set service.type=NodePort
+kubectl -n asm-ingress rollout status deploy/asm-ingressgateway --timeout=300s
 
-# Установка kube-prometheus-stack (Prometheus, Grafana, Alertmanager)
-echo "📊 Установка мониторинга (kube-prometheus-stack)..."
-helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-  --namespace monitoring \
-  --create-namespace \
-  -f "$HELM_DIR/monitoring/values-prometheus.yaml"
-
-# Применение ServiceMonitor для микросервисов Online Boutique
-echo "👁️ Применение ServiceMonitor для сбора метрик Boutique..."
-kubectl apply -f "$HELM_DIR/monitoring/servicemonitor.yaml" || {
-  echo "⚠️ ServiceMonitor не применился (возможно, CRD ещё не готов). Подождите 10–30 сек и запустите скрипт повторно."
-  exit 1
-}
-
-# Установка Jaeger (трейсинг)
-echo "🗺️ Установка Jaeger (распределённый трейсинг)..."
+log "4/8 Jaeger"
 helm upgrade --install jaeger jaegertracing/jaeger \
-  --namespace tracing \
-  --create-namespace \
-  -f "$HELM_DIR/tracing/values-jaeger.yaml"
+  -n tracing -f "$ROOT/helm/tracing/values-jaeger.yaml"
 
-# Развёртывание Online Boutique
-echo "🛍️ Развёртывание приложения Online Boutique..."
-cd "$HELM_DIR/online-boutique"
-helm upgrade --install boutique ./ \
-  --namespace boutique \
-  --create-namespace \
-  -f values.yaml
+log "5/8 Мониторинг: kube-prometheus-stack"
+helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+  -n monitoring -f "$ROOT/helm/monitoring/values-prometheus.yaml"
 
-# Ожидание запуска подов Boutique
-echo "⏳ Ожидание запуска подов Online Boutique..."
-kubectl wait --namespace boutique \
-  --for=condition=Ready pod \
-  --timeout=180s \
-  -l app.kubernetes.io/name=boutique || {
-    echo "⚠️ Некоторые поды не перешли в Ready за 3 минуты. Проверьте: kubectl get pods -n boutique"
-  }
+log "6/8 Логирование: Loki + Promtail"
+helm upgrade --install loki "$ROOT/helm/logging/loki-chart" \
+  -n logging -f "$ROOT/helm/logging/loki-chart/values.yaml"
+helm upgrade --install promtail grafana/promtail \
+  -n logging --set loki.serviceName=loki \
+  -f "$ROOT/helm/logging/values-promtail.yaml"
 
-# Создание Ingress для доступа к фронтенду и Grafana
-echo "🏠 Создание Ingress-ресурсов..."
-cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: boutique-ingress
-  namespace: boutique
-spec:
-  rules:
-    - host: boutique.127.0.0.1.nip.io
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: frontend
-                port:
-                  number: 80
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: grafana-ingress
-  namespace: monitoring
-spec:
-  rules:
-    - host: grafana.127.0.0.1.nip.io
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: kube-prometheus-stack-grafana
-                port:
-                  number: 80
-EOF
+log "7/8 Приложение Online Boutique"
+helm upgrade --install boutique "$ROOT/helm/online-boutique" \
+  -n boutique \
+  --set frontend.externalService=false \
+  --set networkPolicies.create=true \
+  --set sidecars.create=true \
+  --set serviceAccounts.create=true \
+  --set authorizationPolicies.create=true \
+  --set frontend.virtualService.create=true \
+  --set frontend.virtualService.gateway.name=asm-ingressgateway \
+  --set frontend.virtualService.gateway.namespace=asm-ingress \
+  --set frontend.virtualService.gateway.labelKey=asm \
+  --values "$ROOT/helm/online-boutique/values.yaml"
 
-echo "✅ Деплой завершён!"
-echo ""
-echo "🔗 Точки доступа:"
-echo "  Frontend:      http://boutique.127.0.0.1.nip.io"
-echo "  Grafana:       http://grafana.127.0.0.1.nip.io (admin / change-me-in-prod)"
-echo "  Loki:          через Grafana (Data Source)"
-echo "  Jaeger:        нужно создать отдельный Ingress для jaeger-query (см. ниже)"
-echo ""
-echo "💡 Важно: держите терминал с 'minikube tunnel' открытым — иначе LoadBalancer не получит IP."
-echo "   Запустите: minikube tunnel"
+log "8/8 Манифесты и Kiali"
+kubectl apply -f "$ROOT/manifests/frontend-asm-ingress.yaml"
+kubectl apply -f "$ROOT/manifests/istio-metrics.yaml"
+kubectl apply -f "$ROOT/manifests/mon-prometheusrule.yaml"
+kubectl apply -f "$ROOT/manifests/mon-networkpolicy.yaml"
+
+helm upgrade --install kiali-server kiali/kiali-server \
+  -n istio-system -f "$ROOT/helm/kiali/values-kiali.yaml"
+
+log "Готово. Проверка:"
+kubectl get pods -A | grep -Ev 'kube-system'
+GWP=$(kubectl get svc -n asm-ingress asm-ingressgateway \
+  -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}')
+echo "==> Приложение: http://$(minikube ip):$GWP"

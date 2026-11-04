@@ -64,21 +64,6 @@ istioctl install --set profile=demo -y
 #### Удаляем Istio
 istioctl uninstall --purge -y
 
-        |\          
-        | \         
-        |  \        
-        |   \       
-      /||    \      
-     / ||     \     
-    /  ||      \    
-   /   ||       \   
-  /    ||        \  
- /     ||         \ 
-/______||__________\
-____________________
-  \__       _____/  
-     \_____/  
-
 #### Через helm
 helm install istio-base istio/base -n istio-system --create-namespace
 helm install istiod istio/istiod -n istio-system --wait
@@ -212,9 +197,41 @@ helm upgrade --install kiali-server kiali/kiali-server \
 
 #### 🌟 ./scripts/deploy-all.sh (chmod +x kubernetes-project/scripts/deploy-all.sh)
 
+### Удаление кластера:
+#### 🌟 ./scripts/destroy-all.sh (chmod +x kubernetes-project/scripts/destroy-all.sh)
+
+
 ## 🎉 Развертывание в Yandex Cloud - kubernetes-project-prod
 
 ### 🚀 1. Устанавливаем Terraform
 
+cd /tmp
+wget https://hashicorp-releases.yandexcloud.net/terraform/1.16.5/terraform_1.16.5_linux_amd64.zip
+sudo apt install -y unzip   # если unzip ещё не стоит
+unzip terraform_1.16.5_linux_amd64.zip
+sudo mv terraform /usr/local/bin/
+terraform -v
+
+### 🚀 2. Устанавливаем ArgoCD
+
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+
+kubectl create ns argocd
+
+helm install argocd argo/argo-cd \
+  -n argocd --create-namespace
+
+#### Доступ UI
+kubectl get secret argocd-initial-admin-secret -n argocd \
+  -o jsonpath="{.data.password}" | base64 -d; echo
+#### Логин: admin. После первого входа сменим пароль и удалим секрет:
+kubectl delete secret argocd-initial-admin-secret -n argocd
+
+#### Добавляем CLI:
+curl -sSL -o /tmp/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+chmod +x /tmp/argocd
+sudo mv /tmp/argocd /usr/local/bin/
+argocd version --client
 
 
