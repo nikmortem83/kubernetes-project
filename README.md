@@ -136,7 +136,6 @@ kubectl label namespace boutique istio-injection=enabled
 
 helm install boutique ./helm/online-boutique \
   --namespace boutique --create-namespace \
-  --set frontend.externalService=true \
   --set networkPolicies.create=true \
   --set sidecars.create=true \
   --set serviceAccounts.create=true \
@@ -255,3 +254,32 @@ kubectl apply -f argocd/boutique-app.yaml
 argocd app list
 argocd app get boutique      # состояние, health, последние синки
 argocd app sync boutique     # ручной sync, если нужен немедленный прогон
+
+### 🚀 3. GitLab-CI
+
+### =============================================================
+### Единый пайплайн: minikube / cloud
+### DEPLOY_TARGET=minikube  -> деплой в локальный minikube через scripts/
+### DEPLOY_TARGET=cloud     -> Terraform (YC) + деплой платформы + ArgoCD sync
+### =============================================================
+
+#### Переменная CI/CD      	                
+#### YC_TOKEN	              masked, protected	      токен Yandex Cloud
+#### YC_CLOUD_ID	          masked	                ID облака
+#### YC_FOLDER_ID           masked	                ID каталога
+#### CLUSTER_NAME           online-boutique-project имя кластера
+#### NODE_COUNT	            3                       количество узлов
+#### ARGOCD_ADMIN_PASSWORD	masked	                пароль admin ArgoCD облачного кластера
+
+#### 🌟 Запуск и проверка
+##### 1. Коммит пайплайна
+git add .gitlab-ci.yml
+git commit -m "ci: unified pipeline with minikube/cloud targets"
+git push
+
+##### 2. Прогон в minikube: Run pipeline, DEPLOY_TARGET=minikube
+##### 3. Прогон в облако: Run pipeline, DEPLOY_TARGET=cloud
+
+##### после зелёного пайплайна в cloud:
+kubectl config get-contexts        # контекст облачного кластера активен
+argocd app get boutique            # Healthy + Synced
